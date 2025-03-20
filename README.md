@@ -73,11 +73,13 @@ The script `src/preprocess.py` can be used to remove the backgrounds of the labe
 ### 2.4 Publish
 The script `src/publish.py` can be used to upload the dataset to HuggingFace.
 
-| Argument          | Type | Description                                      |
-|-------------------|------|--------------------------------------------------|
-| dataset_directory | str  | directory, in which the frames are stored        |
-| cache_directory   | str  | cache directory -> temporary use                 |
-| huggingface_token | str  | your hugging face token                          |
-| huggingface_repo_id | str | your hugging face repository id |
-| upload_sequences | int | upload sequences [0, 1] |
-| upload_metadata   | int  | upload metadate [0, 1] |
+| Argument            | Type | Description                                      |
+|---------------------|------|--------------------------------------------------|
+| dataset_directory   | str  | directory, in which the frames are stored        |
+| cap_mode            | str  | currently just `realsense` is supported.         |
+| cache_directory     | str  | cache directory -> temporary use                 |
+| huggingface_token   | str  | your hugging face token                          |
+| huggingface_repo_id | str  | your hugging face repository id                  |
+| upload_sequences    | int  | upload sequences [0, 1]                          |
+| upload_metadata     | int  | upload metadate [0, 1]                           |
+| include-depth_data  | int  | include depth data [0, 1]                        |

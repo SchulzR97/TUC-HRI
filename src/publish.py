@@ -12,11 +12,13 @@ from tqdm import tqdm
 def get_args():
     parser = ArgumentParser()
     parser.add_argument('--dataset_directory', type=str, required=True)
+    parser.add_argument('--cap_mode', type=str, default='realsense', required=True)
     parser.add_argument('--cache_directory', type=str, default=None, required=False)
     parser.add_argument('--huggingface_token', type=str, default=None, required=False)
     parser.add_argument('--huggingface_repo_id', type=str, required=True)
     parser.add_argument('--upload_sequences', type=int, default=1)
     parser.add_argument('--upload_metadata', type=int, default=1)
+    parser.add_argument('--include_depth_data', type=int, default=1)
 
     args = parser.parse_args()
 
@@ -27,13 +29,15 @@ if __name__ == '__main__':
 
     phases = ['train', 'val']
 
-    dataset_directory = Path(args.dataset_directory)
+    sequences_directory = Path(args.dataset_directory).joinpath('sequences', args.cap_mode)
 
     cache_directory = Path(args.cache_directory if args.cache_directory else 'cache')
     cache_color = cache_directory.joinpath('color')
     cache_color.mkdir(exist_ok=True, parents=True)
-    cache_depth = cache_directory.joinpath('depth')
-    cache_depth.mkdir(exist_ok=True, parents=True)
+
+    if args.include_depth_data:
+        cache_depth = cache_directory.joinpath('depth')
+        cache_depth.mkdir(exist_ok=True, parents=True)
 
     token = input('Please enter your HuggingFace Token:') if not args.huggingface_token else args.huggingface_token
     login(token)
@@ -41,10 +45,10 @@ if __name__ == '__main__':
     repo_files = list_repo_files(args.huggingface_repo_id, repo_type='dataset')
 
     #region upload sequences
-    with open(dataset_directory.joinpath('LABELS.txt'), 'r') as f:
+    with open(sequences_directory.joinpath('LABELS.txt'), 'r') as f:
         labels = f.read().split('\n')[:-1]
 
-    local_sequences = sorted(glob(f'{dataset_directory}/train/*') + glob(f'{dataset_directory}/val/*'))
+    local_sequences = sorted(glob(f'{sequences_directory}/train/*') + glob(f'{sequences_directory}/val/*'))
 
     SEQS_PER_PART = 1000
     part_idx = 0
@@ -62,7 +66,8 @@ if __name__ == '__main__':
         prog1.set_description(part_id)
 
         repo_file_color = f'color/{part_id}.tar.gz'
-        repo_file_depth = f'depth/{part_id}.tar.gz'
+        if args.include_depth_data:
+            repo_file_depth = f'depth/{part_id}.tar.gz'
         if repo_file_color in repo_files and repo_file_depth in repo_files:
             #continue
             pass
@@ -72,11 +77,14 @@ if __name__ == '__main__':
         part_sequences = local_sequences[s_i:e_i]
 
         cache_tar_file_color = cache_color.joinpath(f'{part_id}.tar.gz')
-        cache_tar_file_depth = cache_depth.joinpath(f'{part_id}.tar.gz')
+
+        if args.include_depth_data:
+            cache_tar_file_depth = cache_depth.joinpath(f'{part_id}.tar.gz')
 
         if args.upload_sequences:
             tar_color = tarfile.open(cache_tar_file_color, 'w:gz')
-            tar_depth = tarfile.open(cache_tar_file_depth, 'w:gz')
+            if args.include_depth_data:
+                tar_depth = tarfile.open(cache_tar_file_depth, 'w:gz')
 
         prog2 = tqdm(part_sequences, leave = False)
         for sequence in prog2:
@@ -95,32 +103,37 @@ if __name__ == '__main__':
                 'link': f'{part_id}/{sequence.name}'
             })
 
-            if UPLOAD_SEQUENCES:
+            if args.upload_sequences:
                 color_files = sorted(glob(f'{sequence}/*_color.jpg'))
                 for color_file in color_files:
                     color_file = Path(color_file)
                     fname = color_file.name.replace('_color', '')
                     tar_color.add(color_file, f'{sequence.name}/{fname}')
 
-                depth_files = sorted(glob(f'{sequence}/*_depth.jpg'))
-                for depth_file in depth_files:
-                    depth_file = Path(depth_file)
-                    fname = depth_file.name.replace('_depth', '')
-                    tar_depth.add(depth_file, f'{sequence.name}/{fname}')
+                if args.include_depth_data:
+                    depth_files = sorted(glob(f'{sequence}/*_depth.jpg'))
+                    for depth_file in depth_files:
+                        depth_file = Path(depth_file)
+                        fname = depth_file.name.replace('_depth', '')
+                        tar_depth.add(depth_file, f'{sequence.name}/{fname}')
 
         if args.upload_sequences:
             tar_color.close()
-            tar_depth.close()
 
-            operations = [
-                CommitOperationAdd(repo_file_color, cache_tar_file_color),
-                CommitOperationAdd(repo_file_depth, cache_tar_file_depth),
-            ]
+            if args.include_depth_data:
+                tar_depth.close()
+
+            operations = [CommitOperationAdd(repo_file_color, cache_tar_file_color)]
+            if args.include_depth_data:
+                operations.append(CommitOperationAdd(repo_file_depth, cache_tar_file_depth))
+
             create_commit(args.huggingface_repo_id, operations, commit_message=f'Upload part {part_id}', repo_type='dataset')
             operations = []
 
             os.remove(cache_tar_file_color)
-            os.remove(cache_tar_file_depth)
+
+            if args.include_depth_data:
+                os.remove(cache_tar_file_depth)
         pass
     #endregion
 

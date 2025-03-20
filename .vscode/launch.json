@@ -47,14 +47,16 @@
             "name": "Publish",
             "type": "debugpy",
             "request": "launch",
-            "program": "utils/publish_dataset.py",
+            "program": "src/publish.py",
             "console": "integratedTerminal",
             "args": [
-                "--dataset_directory", "/home/schulzr/Documents/datasets/Test",
-                "--huggingface_token", "XXXXXXXXXXXXXXXXXXXXX",
+                "--dataset_directory", "/home/schulzr/Documents/datasets/TUC-HRI",
+                "--cap_mode", "realsense",
+                //"--huggingface_token", "XXXXXXXXXXXXXXXXXXXXX",
                 "--huggingface_repo_id", "SchulzR97/TUC-HRI",
                 "--upload_sequences", "1",
-                "--upload_metadata", "1"
+                "--upload_metadata", "1",
+                "--include_depth_data", "0"
             ]
         }
     ]
